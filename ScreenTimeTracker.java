@@ -5,185 +5,198 @@ import java.util.*;
 public class ScreenTimeTracker {
 
     private static final String LOG_FILE = "usage_logs.csv"; // file to store usage logs
-    private static boolean tracking = false; // flag to check if tracking is ongoing
+    private static boolean tracking = false; // flag to check if tracking is running
     private static List<String> lastApps = new ArrayList<>(); // stores apps from last check
     private static int idleCount = 0; // counts consecutive idle intervals
-    private static int idleMins = 5; // minutes to consider user idle (default)
+    private static int idleMins = 5; // default idle minutes
 
-    // start tracking method
+    // method to ensure log file exists with headers
+    private static void initLogFile() {
+        File file = new File(LOG_FILE); // create file object
+        if (!file.exists()) { // if file does not exist
+            try (BufferedWriter bw = new BufferedWriter(new FileWriter(file))) { // create file writer
+                bw.write("timestamp,app,minutes"); // write header
+                bw.newLine(); // move to next line
+            } catch (IOException e) { // handle exception
+                e.printStackTrace();
+            }
+        }
+    }
+
+    // method to start tracking apps
     public static void startTracking(int intervalMinutes, boolean liveReport) {
-        tracking = true; // enable tracking
-        System.out.println("tracking started....(type 'stop' to end)"); // inform user
+        tracking = true; // set tracking to true
+        initLogFile(); // ensure log file is created
+        System.out.println("tracking started....(type 'stop' to end)"); // show message
 
-        // thread to listen for 'stop' command from user
+        // create thread to listen for 'stop' command
         new Thread(() -> {
-            Scanner sc = new Scanner(System.in); // scanner for user input
-            while (tracking) { // loop until tracking stops
-                if (sc.nextLine().trim().equalsIgnoreCase("stop")) { // if user types 'stop'
+            Scanner sc = new Scanner(System.in); // scanner for input
+            while (tracking) { // loop while tracking
+                if (sc.nextLine().trim().equalsIgnoreCase("stop")) { // if user types stop
                     tracking = false; // stop tracking
-                    System.out.println("tracking stopped."); // notify user
-                    break;
+                    System.out.println("tracking stopped."); // message
+                    System.exit(0); // exit program
                 }
             }
         }).start(); // start the thread
 
         while (tracking) { // main tracking loop
             try {
-                List<String> apps = getRunningApps(); // get currently running apps
+                List<String> apps = getRunningApps(); // get running apps
 
-                // idle detection: if apps same as last check
+                // idle detection: check if apps same as last time
                 if (apps.equals(lastApps)) {
                     idleCount++; // increase idle counter
-                    if (idleCount >= idleMins) { // if idle threshold reached
+                    if (idleCount >= idleMins) { // if idle threshold crossed
                         apps = Collections.singletonList("IDLE"); // mark as idle
                     }
                 } else {
                     idleCount = 0; // reset idle counter if activity detected
                 }
 
-                logUsage(apps); // log current apps to csv
-                lastApps = new ArrayList<>(apps); // update lastApps
+                logUsage(apps); // log apps to file
+                lastApps = new ArrayList<>(apps); // update last apps list
 
                 if (liveReport) { // if live report enabled
-                    generateReport(false); // print today's report
+                    generateReport(false); // show daily report instantly
                 }
 
                 Thread.sleep(intervalMinutes * 60 * 1000L); // wait for interval
-            } catch (Exception e) {
-                e.printStackTrace(); // print any exceptions
+            } catch (Exception e) { // handle errors
+                e.printStackTrace();
             }
         }
     }
 
-    // get running apps for current os
+    // method to get running apps based on os
     private static List<String> getRunningApps() throws IOException {
-        List<String> apps = new ArrayList<>(); // list to store apps
+        List<String> apps = new ArrayList<>(); // list of apps
         String os = System.getProperty("os.name").toLowerCase(); // detect os
-        ProcessBuilder pb;
+        ProcessBuilder pb; // process builder
 
         if (os.contains("win")) { // windows
             pb = new ProcessBuilder("tasklist"); // use tasklist command
-        } else { // linux/mac
-            pb = new ProcessBuilder("ps", "-e", "-o", "comm="); // get command names
+        } else { // linux or mac
+            pb = new ProcessBuilder("ps", "-e", "-o", "comm="); // use ps command
         }
 
-        Process process = pb.start(); // start the process
+        Process process = pb.start(); // start process
         Scanner sc = new Scanner(process.getInputStream()); // read output
 
-        while (sc.hasNextLine()) { // loop through each line
-            String line = sc.nextLine().trim(); // trim whitespace
+        while (sc.hasNextLine()) { // loop through output
+            String line = sc.nextLine().trim(); // read line
             if (line.isEmpty()) continue; // skip empty lines
 
-            if (os.contains("win")) { // windows: filter .exe
-                if (line.toLowerCase().contains(".exe")) {
-                    apps.add(line.split(" ")[0].trim()); // add executable name
+            if (os.contains("win")) { // for windows
+                if (line.toLowerCase().contains(".exe")) { // check .exe
+                    apps.add(line.split(" ")[0].trim()); // add app name
                 }
-            } else { // linux/mac
-                apps.add(line); // add command name directly
+            } else { // for linux/mac
+                apps.add(line); // add directly
             }
         }
         sc.close(); // close scanner
-        return apps; // return list of apps
+        return apps; // return apps
     }
 
-    // log app usage to csv
+    // method to log app usage into csv
     private static void logUsage(List<String> apps) {
-        try (BufferedWriter bw = new BufferedWriter(new FileWriter(LOG_FILE, true))) { // append mode
-            String timestamp = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date()); // current timestamp
+        try (BufferedWriter bw = new BufferedWriter(new FileWriter(LOG_FILE, true))) { // open file in append mode
+            String timestamp = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date()); // get timestamp
             for (String app : apps) { // loop through apps
-                // escape quotes in app name and write csv line
-                bw.write(String.format("\"%s\",\"%s\",1", timestamp, app.replace("\"", "\"\"")));
-                bw.newLine(); // new line per app
+                bw.write(String.format("\"%s\",\"%s\",1", timestamp, app.replace("\"", "\"\""))); // write log line
+                bw.newLine(); // move to new line
             }
-        } catch (IOException e) {
-            e.printStackTrace(); // print exceptions
+        } catch (IOException e) { // handle error
+            e.printStackTrace();
         }
     }
 
-    // generate daily or weekly report
+    // method to generate daily or weekly report
     private static void generateReport(boolean weekly) {
-        Map<String, Integer> usage = new HashMap<>(); // map app -> total minutes
+        Map<String, Integer> usage = new HashMap<>(); // map for usage
         Date now = new Date(); // current date
-        Calendar cal = Calendar.getInstance();
+        Calendar cal = Calendar.getInstance(); // calendar
         cal.setTime(now);
-        Date weekAgo = null;
+        Date weekAgo = null; // date for weekly report
 
-        if (weekly) { // if weekly report
-            cal.add(Calendar.DAY_OF_MONTH, -7); // 7 days ago
-            weekAgo = cal.getTime();
+        if (weekly) { // if weekly
+            cal.add(Calendar.DAY_OF_MONTH, -7); // subtract 7 days
+            weekAgo = cal.getTime(); // set weekAgo
         }
 
-        try (BufferedReader br = new BufferedReader(new FileReader(LOG_FILE))) { // read csv
+        try (BufferedReader br = new BufferedReader(new FileReader(LOG_FILE))) { // read file
             String line;
-            SimpleDateFormat full = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss"); // for parsing timestamp
-            SimpleDateFormat day = new SimpleDateFormat("yyyy-MM-dd"); // for daily comparison
+            SimpleDateFormat full = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss"); // timestamp format
+            SimpleDateFormat day = new SimpleDateFormat("yyyy-MM-dd"); // date format
 
-            while ((line = br.readLine()) != null) { // read each line
+            br.readLine(); // skip header line
+
+            while ((line = br.readLine()) != null) { // loop through file
                 String[] parts = parseCSV(line); // parse csv line
-                if (parts.length < 3) continue; // skip invalid lines
+                if (parts.length < 3) continue; // skip invalid
 
-                Date logDate = full.parse(parts[0]); // parse timestamp
+                Date logDate = full.parse(parts[0]); // parse date
                 String app = parts[1]; // app name
-                int duration = Integer.parseInt(parts[2]); // duration in minutes
+                int duration = Integer.parseInt(parts[2]); // duration
 
-                // include in report if within date range
+                // check if entry is in range
                 if (weekly) {
                     if (!logDate.before(weekAgo) && !logDate.after(now)) {
-                        usage.put(app, usage.getOrDefault(app, 0) + duration);
+                        usage.put(app, usage.getOrDefault(app, 0) + duration); // add minutes
                     }
                 } else { // daily report
                     if (day.format(logDate).equals(day.format(now))) {
-                        usage.put(app, usage.getOrDefault(app, 0) + duration);
+                        usage.put(app, usage.getOrDefault(app, 0) + duration); // add minutes
                     }
                 }
             }
-        } catch (Exception e) {
-            e.printStackTrace(); // print exceptions
+        } catch (Exception e) { // handle error
+            e.printStackTrace();
         }
 
-        // sort apps by usage descending
-        List<Map.Entry<String, Integer>> list = new ArrayList<>(usage.entrySet());
-        list.sort((a, b) -> b.getValue() - a.getValue());
+        List<Map.Entry<String, Integer>> list = new ArrayList<>(usage.entrySet()); // convert map to list
+        list.sort((a, b) -> b.getValue() - a.getValue()); // sort by usage descending
 
-        // print report header
-        System.out.println((weekly ? "weekly" : "daily") + " report:");
+        System.out.println((weekly ? "weekly" : "daily") + " report:"); // report header
         System.out.println("-------------------------");
 
-        int maxUsage = list.isEmpty() ? 0 : list.get(0).getValue(); // for scaling bars
-        int count = 0;
+        int maxUsage = list.isEmpty() ? 0 : list.get(0).getValue(); // max usage for scaling
+        int count = 0; // counter
 
-        for (Map.Entry<String, Integer> entry : list) { // print top 5 apps
-            if (count >= 5) break;
-            int minutes = entry.getValue(); // total minutes
-            int barLen = maxUsage == 0 ? 0 : (int) ((minutes / (double) maxUsage) * 30); // scale bar
+        for (Map.Entry<String, Integer> entry : list) { // loop through usage
+            if (count >= 5) break; // top 5 only
+            int minutes = entry.getValue(); // usage minutes
+            int barLen = maxUsage == 0 ? 0 : (int) ((minutes / (double) maxUsage) * 30); // scale bar length
             String bar = "#".repeat(barLen); // create ascii bar
             System.out.printf("%-20s : %3d min |%s%n", entry.getKey(), minutes, bar); // print line
-            count++;
+            count++; // increase counter
         }
-        System.out.println(); // blank line
+        System.out.println(); // empty line
     }
 
-    // csv parsing handling quotes
+    // method to parse csv with quotes
     private static String[] parseCSV(String line) {
-        List<String> values = new ArrayList<>();
-        boolean inQuotes = false;
-        StringBuilder sb = new StringBuilder();
+        List<String> values = new ArrayList<>(); // list for values
+        boolean inQuotes = false; // track if inside quotes
+        StringBuilder sb = new StringBuilder(); // string builder
 
-        for (char c : line.toCharArray()) {
-            if (c == '"') { // toggle inQuotes on quote
+        for (char c : line.toCharArray()) { // loop characters
+            if (c == '"') { // toggle quotes
                 inQuotes = !inQuotes;
-            } else if (c == ',' && !inQuotes) { // comma outside quotes
+            } else if (c == ',' && !inQuotes) { // split on comma outside quotes
                 values.add(sb.toString()); // add value
                 sb.setLength(0); // reset buffer
             } else {
-                sb.append(c); // append character
+                sb.append(c); // add char
             }
         }
         values.add(sb.toString()); // add last value
-        return values.toArray(new String[0]); // convert to array
+        return values.toArray(new String[0]); // return as array
     }
 
-    // show cli help
+    // method to show help commands
     private static void showHelp() {
         System.out.println("screen time tracker commands:");
         System.out.println(" start [interval] [idle] [live] -> start tracking (interval in minutes, idle threshold, live report true/false)");
@@ -193,21 +206,27 @@ public class ScreenTimeTracker {
         System.out.println(" stop                            -> stop tracking");
     }
 
-    // main entry point
+    // main method
     public static void main(String[] args) {
-        if (args.length == 0) { // no arguments, show help
-            showHelp();
-            return;
+        if (args.length == 0) { // if no arguments
+            showHelp(); // show help
+            return; // exit
         }
 
-        switch (args[0].toLowerCase()) {
+        switch (args[0].toLowerCase()) { // check command
             case "start":
                 int interval = 1; // default interval
                 if (args.length >= 2) {
-                    try { interval = Integer.parseInt(args[1]); } catch (Exception ignored) {}
+                    try { interval = Integer.parseInt(args[1]); } // parse interval
+                    catch (Exception e) {
+                        System.out.println("invalid interval, using default 1 minute."); // error message
+                    }
                 }
                 if (args.length >= 3) {
-                    try { idleMins = Integer.parseInt(args[2]); } catch (Exception ignored) {}
+                    try { idleMins = Integer.parseInt(args[2]); } // parse idle
+                    catch (Exception e) {
+                        System.out.println("invalid idle threshold, using default 5 minutes."); // error message
+                    }
                 }
                 boolean liveReport = args.length >= 4 && args[3].equalsIgnoreCase("true"); // live report flag
                 startTracking(interval, liveReport); // start tracking
@@ -223,11 +242,12 @@ public class ScreenTimeTracker {
                 break;
             case "stop":
                 tracking = false; // stop tracking
-                System.out.println("tracking stopped.");
+                System.out.println("tracking stopped."); // message
+                System.exit(0); // exit program
                 break;
             default:
-                System.out.println("unknown command.");
-                showHelp(); // show help on invalid command
+                System.out.println("unknown command."); // invalid command
+                showHelp(); // show help
         }
     }
 }

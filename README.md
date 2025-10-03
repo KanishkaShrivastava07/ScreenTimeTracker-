@@ -1,69 +1,84 @@
 # Screen Time Tracker
 
-## 📌 Description
-a java command-line application to track computer screen time by monitoring running apps.  
-it logs app usage to a csv file and generates daily or weekly reports with top-used apps and ascii bar charts.  
-it also detects idle periods and allows configurable tracking intervals.  
+📌 **Description**
+A Java command-line application to track computer screen time by monitoring running apps.
+It logs app usage to a CSV file and generates daily or weekly reports with top-used apps and ASCII bar charts.
+It also detects idle periods and allows configurable tracking intervals.
 
 ---
 
 ## 🚀 Features
-- tracks running apps on **windows, linux, and mac**  
-- **idle detection**: marks user as idle after configurable minutes  
-- logs usage to **usage_logs.csv**  
-- generates **daily** and **weekly** reports  
-- **ascii bar charts** for visual representation of app usage  
-- configurable **tracking interval** and **idle threshold**  
-- **live report** option for real-time updates  
-- **stop command** to gracefully end tracking  
+
+* Tracks running apps on **Windows, Linux, and Mac**
+* **Idle detection**: marks user as idle after configurable minutes
+* Logs usage to `usage_logs.csv`
+* Generates **daily and weekly reports**
+* **ASCII bar charts** for visual representation of app usage
+* Configurable tracking interval and idle threshold
+* **Live report** option for real-time updates
+* **Stop command** to gracefully end tracking
 
 ---
 
 ## ⚡ Commands
 
-| Command | Description |
-|---------|-------------|
-| `start [interval] [idle] [live]` | start tracking (interval in minutes, idle threshold in minutes, live report: true/false) |
-| `report_day` | show today’s usage report |
-| `report_week` | show last 7 days usage report |
-| `stop` | stop tracking |
-| `help` | show all commands |
+| Command                          | Description                                                                              |
+| -------------------------------- | ---------------------------------------------------------------------------------------- |
+| `start [interval] [idle] [live]` | Start tracking (interval in minutes, idle threshold in minutes, live report: true/false) |
+| `report_day`                     | Show today’s usage report                                                                |
+| `report_week`                    | Show last 7 days usage report                                                            |
+| `stop`                           | Stop tracking                                                                            |
+| `help`                           | Show all commands                                                                        |
 
 ---
 
 ## 📂 Usage Examples
 
-- **start tracking every 1 minute, idle after 5 minutes, live report enabled**:
+Start tracking every 1 minute, idle after 5 minutes, live report enabled:
+
 ```bash
 java ScreenTimeTracker start 1 5 true
-show today’s report:
+```
 
-bash
-Copy code
+Show today’s report:
+
+```bash
 java ScreenTimeTracker report_day
-show last 7 days report:
+```
 
-bash
-Copy code
+Show last 7 days report:
+
+```bash
 java ScreenTimeTracker report_week
-stop tracking while it’s running:
+```
+
+Stop tracking while it’s running:
+
+```bash
 type stop in console
+```
 
-🖥 Requirements
-java 8 or higher
+---
 
-works on windows, linux, mac
+## 🖥 Requirements
 
-terminal or command prompt
+* Java 8 or higher
+* Works on **Windows, Linux, Mac**
+* Terminal or Command Prompt
 
-📝 Notes
-logs are stored in usage_logs.csv in the same directory
+---
 
-app names containing commas are handled correctly
+## 📝 Notes
 
-live report prints the top 5 apps every interval
+* Logs are stored in `usage_logs.csv` in the same directory
+* App names containing commas are handled correctly
+* Live report prints the **top 5 apps** every interval
 
-🔄 Project Flow Diagram
+---
+
+## 🔄 Project Flow Diagram
+
+```
 start program
       |
 parse CLI args (interval, idle, live report)
@@ -85,3 +100,4 @@ check 'stop' command
 stop tracking
       |
 generate reports (daily/weekly)
+```

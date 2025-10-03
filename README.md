@@ -62,3 +62,26 @@ logs are stored in usage_logs.csv in the same directory
 app names containing commas are handled correctly
 
 live report prints the top 5 apps every interval
+
+🔄 Project Flow Diagram
+start program
+      |
+parse CLI args (interval, idle, live report)
+      |
+start tracking
+      |
+get running apps (windows/linux/mac)
+      |
+compare with last apps (idle detection)
+      |
+log apps to CSV
+      |
+print live report (optional)
+      |
+wait interval
+      |
+check 'stop' command
+      |
+stop tracking
+      |
+generate reports (daily/weekly)
